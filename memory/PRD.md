@@ -1,0 +1,81 @@
+# Memory Link - PRD
+
+## Original Problem Statement
+Build a couples photo-sharing app where two people can capture/upload pictures and send them to each other through the app. Photos are saved permanently. App provides notifications when photos are sent, when photos can/should be sent. Similar to Locket and Amourly.
+
+## User Choices (gathered via ask_human)
+- **Authentication**: Simple pairing code system (6-digit code)
+- **Notifications**: Browser push notifications + Scheduled reminders + In-app notifications
+- **Photo features**: Camera capture/upload + Captions + Reactions
+- **Reminder timing**: Daily at specific time + Activity-based (when partner hasn't sent photo in X hours)
+- **AI features**: None
+
+## Architecture
+- **Frontend**: React + Tailwind + shadcn/ui + Framer Motion (Neo-brutalist pastel design)
+- **Backend**: FastAPI + APScheduler + MongoDB (motor async)
+- **Storage**: Emergent Object Storage (via EMERGENT_LLM_KEY)
+- **Push**: Web Push API with VAPID keys (pywebpush)
+
+## What's Been Implemented
+
+### Iteration 1 — Core MVP (Feb 2026)
+- Pairing code (6-digit) system to connect two users
+- Photo upload to object storage with captions
+- Photo gallery (polaroid-style tilted cards)
+- Photo reactions (heart emoji)
+- In-app notification feed
+- Browser push notification subscription + VAPID
+- Auto-notification when partner uploads photo
+- Mobile-first neo-brutalist UI
+
+### Iteration 2 — Critical Bug Fixes
+- Fixed couples ObjectId/UUID mismatch (partner lookup was returning null)
+- Fixed object storage init timing (was failing 400 because env var loaded after import)
+
+### Iteration 3 — Expanded Feature Set (Feb 2026)
+- ✅ **Streak counter** — consecutive days BOTH partners sent a photo (header badge)
+- ✅ **Comments on photos** — inline comment thread per photo (notifies uploader)
+- ✅ **Messaging/Chat** — real-time chat between partners with unread badge
+- ✅ **Daily reminder settings** — user-configurable HH:MM daily push reminder
+- ✅ **Inactivity reminder** — alert when partner hasn't sent a photo in X hours
+- ✅ **"On This Day" memories** — banner in gallery showing photos from same calendar day in past years
+- ✅ **Settings modal** — gear icon in header opens slide-up sheet
+- ✅ **4-tab bottom nav** — Camera, Gallery, Chat, Notifications (each with badges)
+
+### Iteration 4 — Streak Engagement Loop (Feb 2026)
+- ✅ **Streak milestones** — confetti celebration modal at 3, 7, 14, 30, 50, 100, 200, 365, 500, 1000 days
+- ✅ **Streak-at-risk detection** — `atRisk` flag in `/api/streak` after 6pm UTC if today incomplete
+- ✅ **Visual at-risk indicator** — streak badge pulses pink when at risk
+- ✅ **"Ping!" button** — sends urgent push notification to partner asking them to save the streak
+- ✅ **Auto streak-at-risk alerts** — scheduler runs 6-10pm UTC, sends push to user(s) who haven't uploaded today
+- ✅ **Milestone celebrated tracking** — couples doc tracks `celebratedMilestones[]` to prevent re-showing
+
+## Backend Collections
+- `users`: id (UUID), name, coupleId, createdAt
+- `couples`: id (UUID), pairCode, user1Id, user2Id, createdAt
+- `photos`: id, uploaderId, coupleId, storagePath, caption, reactions[], comments[], createdAt
+- `notifications`: id, userId, type, title, message, payload, isRead, createdAt, readAt
+- `push_subscriptions`: userId, subscription
+- `reminders`: scheduledAt, message, type, processed, processedAt
+- `messages`: id, coupleId, senderId, senderName, text, createdAt, readBy[]
+- `user_settings`: userId, dailyReminderEnabled, dailyReminderTime, inactivityReminderEnabled, inactivityHours
+
+## Scheduler Jobs
+- `process_due_reminders` — every 60s, processes one-off reminders
+- `check_recurring_reminders` — every 5min, scans settings, sends daily/inactivity reminders
+
+## Prioritized Backlog
+### P1 (Future polish)
+- Multi-emoji reactions (currently only heart)
+- Photo streak rewards/milestones (e.g., 7/30/100 day badges)
+- Message pagination (currently capped at 500)
+- Timezone-aware streak counting (currently UTC)
+- Reminder message customization
+- Block list / reset partner pairing
+
+### P2 (Nice to have)
+- iOS PWA install prompt
+- Multi-device push subscription management
+- Export gallery as photo book
+- Photo memory video reels
+- Stickers/GIF reactions in chat

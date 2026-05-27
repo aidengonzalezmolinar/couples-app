@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 3 testing of Memory Link new features: streak, comments, messages/chat, settings, memories, daily/inactivity reminders. Backend: 32/32 pytest cases pass (17 new + 15 regression). All new endpoints behave correctly: GET/PUT /api/settings persists per-user via upsert; POST /api/photos/{id}/comment embeds comment in photo doc, returns clean JSON (no _id leak) and notifies uploader; POST /api/messages strips Mongo _id from response, creates partner notification; /api/messages/mark-read clears unread for partner; /api/streak correctly counts 1 when both partners uploaded today; /api/photos/memories returns [] when no historical photos and no _id leak. Frontend Playwright E2E: 4-tab nav (Camera/Gallery/Chat/Notifications) renders, StreakBadge shows in header with text, SettingsModal opens via gear icon, toggles for daily/inactivity reminders work, save persists (verified via API GET), Chat sends/receives messages (2 bubbles after send), Gallery comment toggle present when photos exist, Notifications tab opens. Test users prefixed TEST_ created via API and reused.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/streak", "issue": "Streak loop relies on string date comparison from photo.createdAt[:10] in UTC; users in different timezones may see off-by-one. Not a blocker but worth documenting."},
+      {"endpoint": "/api/photos/memories", "issue": "No pagination/length cap on memories returned (length=2000 cursor); fine for now."},
+      {"endpoint": "/api/messages", "issue": "GET caps at 500 messages (silent truncation). Add pagination as conversations grow."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BottomNav", "issue": "Playwright element.click(force=True) does NOT trigger React onClick for nav-chat/nav-gallery/nav-notifications buttons (timed out 30s). Direct JS dispatch via document.querySelector(...).click() works. Root cause: parent div has 'pointer-events-none' (z-40 fixed overlay), and although inner container has 'pointer-events-auto', Playwright's synthesised mouse events appear to be hit-tested against the outer pointer-events-none element. Real users (touch/native click) are unaffected — buttons work in production. Suggest moving 'pointer-events-auto' to the button itself or removing the pointer-events-none wrapper for better test/a11y compatibility.", "selector": "[data-testid=\"nav-chat\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Notifications page", "issues": ["'Notifications blocked' banner appears for all users by default (because Playwright headless context blocks notifications). In real Chrome, users see this until they grant permission — copy could be softened to 'Enable notifications to get alerts' rather than a stern blocked warning."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_memory_link.py",
+    "/app/test_reports/pytest/iter3_new.xml",
+    "/app/test_reports/pytest/iter3_regression.xml"
+  ],
+  "action_items": [
+    "Consider fixing BottomNav pointer-events wrapper so Playwright's force-click works (optional; doesn't affect real users).",
+    "Add pagination to /api/messages and /api/photos/memories for long-term scalability."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 686 lines with all new routes inline. STRONGLY recommend splitting into routers/ (auth, photos, messages, settings, streak, memories) — file is well over 700 line threshold.",
+    "PushService instantiated per-request in 3+ handlers (upload, comment, message). Reuse app.state-stored instance or the push_service_factory used by scheduler.",
+    "react_to_photo still allows unlimited duplicate emoji reactions per user (no $addToSet). Consider de-duping by (userId, emoji).",
+    "/api/streak: 1000-iteration safety bound is reasonable but the streak logic returns 0 if only one of the partners has photos today AND no consecutive past days — the early-return assumes yesterday as start when today incomplete, but never actually enters the loop with today flagged. Verified correct for paired-couple-today scenario but worth a unit test for the 'today only one sent, yesterday both sent' case.",
+    "Streak relies on UTC date string slicing — switch to per-user timezone or document UTC assumption.",
+    "Settings model lacks validation (e.g., dailyReminderTime regex HH:MM, inactivityHours range 1-168). Bad input is accepted as-is."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "test_credentials": "No auth required. Test users prefixed TEST_ created via /api/auth/create-user. EMERGENT_LLM_KEY and VAPID keys configured in /app/backend/.env.",
+  "seed_data_creation": "Test runs create TEST_I3_Alice, TEST_I3_Bob, TEST_UI{n}_A, TEST_UI{n}_B users plus photos/messages/comments. Not cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All new iteration-3 endpoints verified working. Backend regression (test_memory_link.py) and new features (test_new_features.py) suites both pass 100%. To re-run: `cd /app && pytest backend/tests/ -v`. Frontend UI integration verified via Playwright — note that bottom nav buttons require JS .click() not Playwright .click(force=True) due to pointer-events-none wrapper (cosmetic test concern, not a real-user bug). Settings persistence verified end-to-end (UI save -> GET /api/settings).",
+  "rca of the issue": "Playwright cross-test on nav-chat fails because /app/frontend/src/components/BottomNav.js wraps the nav bar in a fixed container with 'pointer-events-none' (line 13). The inner div sets 'pointer-events-auto' (line 15) to re-enable clicks for real users, but Playwright's force-click still uses CSS hit-testing which sees pointer-events-none on the ancestor. Fix: either remove the outer pointer-events-none, or apply pointer-events-auto directly on the inner buttons. Workaround in tests: use page.evaluate to call .click() directly on the element."
+}

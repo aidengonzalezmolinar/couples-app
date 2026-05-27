@@ -1,0 +1,81 @@
+{
+  "theme": "Light",
+  "archetype": "3 (Pastel & Soft) + Neo-Brutalist",
+  "mood": "Playful, Intimate, Nostalgic, Trendy",
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "weights": ["600", "800"],
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "font_family": "Manrope",
+      "weights": ["400", "500", "700"]
+    }
+  },
+  "colors": {
+    "background": "#FFF9F0",
+    "surface": "#FFFFFF",
+    "primary": "#FF7A9F",
+    "secondary": "#FFE270",
+    "accent_blue": "#BEE3F8",
+    "text_primary": "#121212",
+    "text_secondary": "#52525B",
+    "border": "#121212"
+  },
+  "styling_rules": {
+    "borders": "2px solid #121212 (border-2 border-[#121212]) on all interactive elements, cards, and bottom nav",
+    "shadows": "Solid offset shadows (shadow-[4px_4px_0px_0px_#121212]) instead of soft blurs to create a trendy, tactile, physical feel",
+    "radius": "Generous rounded corners (rounded-2xl to rounded-3xl) to soften the brutalist borders and keep it friendly",
+    "spacing": "Generous padding, p-6 or p-8 inside cards. The UI should feel chunky and touch-friendly."
+  },
+  "components": {
+    "buttons": "Thick borders, solid offset shadow, bright pastel background (e.g., bg-[#FFE270] or bg-[#FF7A9F]), active:translate-y-[4px] active:translate-x-[4px] active:shadow-none transition-all duration-150",
+    "inputs": "Shadcn input customized heavily: border-2 border-[#121212] rounded-xl bg-white focus-visible:ring-0 focus-visible:bg-[#FFF9F0] shadow-[4px_4px_0px_0px_#121212] focus:shadow-[2px_2px_0px_0px_#121212] text-lg p-6",
+    "photo_card": "Polaroid style: bg-white, border-2 border-[#121212], shadow-[6px_6px_0px_0px_#121212], rounded-xl. Large square photo area with a small caption area below. Tilted slightly (e.g., -rotate-2 or rotate-2) to feel organic and casual.",
+    "bottom_nav": "Floating pill-shaped nav at bottom center. bg-white, border-2 border-[#121212], shadow-[4px_4px_0px_0px_#121212], rounded-full. Contains Lucide icons with high contrast states."
+  },
+  "layout_patterns": {
+    "feed": "Vertical scrolling feed of photo cards. Ensure the background color is visible (bg-[#FFF9F0]). Wide gap between items (gap-8 or gap-12).",
+    "camera": "Large viewfinder occupying most of the screen. Rounded corners (rounded-3xl) with a thick border. Below it, a massive circular capture button (bg-white border-4 border-[#121212] w-20 h-20 rounded-full active:scale-95).",
+    "pairing": "Centered layout for onboarding. Use the provided app_logo. Large typography. Use a 6-digit code input display.",
+    "notifications": "Simple list of alerts. Highlight 'partner is waiting' in the primary pastel color."
+  },
+  "media": {
+    "logo": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/8b85d457-dc7c-433b-90f1-7f21f596c0e8/images/31fde269e39fc2ca86dac4b7dbaf37cd6dd0c99a2897a3acd6daa943002b4ad5.png",
+      "description": "App logo: interlocking hearts / soft padlock in pastel yellow and peach. Used on pairing screen and header."
+    },
+    "sample_photos": [
+      {
+        "url": "https://images.unsplash.com/photo-1759492755563-8f5e49b0abcf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjB0YWtpbmclMjBzZWxmaWUlMjBtaXJyb3J8ZW58MHx8fHwxNzc5Nzc0MzYzfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Couple mirror selfie for the feed"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1723724537190-8062a9515ca8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHw0fHxhZXN0aGV0aWMlMjBtb3JuaW5nJTIwY29mZmVlJTIwUE9WfGVufDB8fHx8MTc3OTc3NDM2Nnww&ixlib=rb-4.1.0&q=85",
+        "description": "Aesthetic coffee POV for the feed"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1774979300954-2ffdf0f676e7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwzfHxjb3VwbGUlMjB0YWtpbmclMjBzZWxmaWUlMjBtaXJyb3J8ZW58MHx8fHwxNzc5Nzc0MzYzfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Couple selfie in store for the feed"
+      }
+    ]
+  },
+  "animations": {
+    "hover": "Not as relevant for mobile, but on tap: elements compress using translate and remove shadow.",
+    "reactions": "When a user reacts (heart/like), animate a small floating emoji moving upwards using Framer Motion.",
+    "page_transition": "Use Framer Motion to slide tabs sideways or slide up for modal/camera screens."
+  },
+  "instructions_to_main_agent": [
+    "Build a mobile-first web app using React, Tailwind CSS, and Framer Motion.",
+    "Ensure the app feels like a native mobile app (use h-screen, overflow-hidden on root, and internal scrolling for feeds).",
+    "Implement the Neo-Brutalist soft pastel theme exactly as specified: strict 2px #121212 borders and sharp offset shadows (#121212).",
+    "Install Google Fonts 'Outfit' and 'Manrope' in index.html/css.",
+    "Primary Navigation: A fixed bottom tab bar with 3 tabs (Camera, Feed/Gallery, Notifications) using Lucide icons.",
+    "Camera Feature: You can use HTML5 camera API or build a mocked viewfinder (a large UI square with camera UI overlays) that 'captures' by picking one of the sample_photos.",
+    "Feed Feature: Show a list of polaroid-style cards. Each card has a photo, a short caption, and a reaction button.",
+    "Pairing Screen: Implement a simple UI simulating the entering of a shared code to connect accounts.",
+    "Notification Screen: Show simulated alerts (e.g., 'Partner sent a photo!', 'Daily reminder: send a photo').",
+    "Ensure all interactive elements and buttons have data-testid attributes for testing."
+  ]
+}

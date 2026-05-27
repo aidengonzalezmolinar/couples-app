@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 4 testing of streak milestone celebrations + at-risk alerts. Backend: 21/21 new pytest cases pass + 32/32 regression (test_new_features.py + test_memory_link.py) = 53/53 total. New /api/streak fields atRisk and newMilestone verified. /api/streak/celebrate idempotently marks milestone as celebrated; subsequent /api/streak returns newMilestone=null. /api/streak/save creates partner notification with type='streak_save'. Streak count correctly reflects photo uploads (seeded Alice/Bob couple = 3 days). Frontend Playwright E2E: StreakBadge renders with count=3, MilestoneCelebration modal appears with correct emoji/title/subtitle for milestone=3 (🌱 + '3 Days!' + \"You're building something special\"), modal close button dismisses overlay and POSTs /api/streak/celebrate (verified by reload — modal does not reappear), save-streak-button hidden because both partners sent today (atRisk=false). All data-testids present and working: streak-badge, streak-count, save-streak-button, milestone-overlay, milestone-card, milestone-emoji, milestone-title, milestone-subtitle, milestone-close-button.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/streak", "issue": "atRisk gate uses two different hour thresholds in code: server.py uses hour>=14 (2pm UTC), scheduler.py uses 18<=hour<=22 (6-10pm UTC). Inconsistent — UI may show atRisk=true between 2pm-6pm UTC but scheduler won't actually send the alert until 6pm. Either align both to same window or document the divergence."},
+      {"endpoint": "/api/streak/celebrate", "issue": "Accepts arbitrary milestone integer (e.g., 7777) and stores it in celebratedMilestones. No validation against MILESTONES list. Low impact since UI controls the value, but worth restricting."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4_streak.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_memory_link.py",
+    "/app/test_reports/pytest/iter4_streak.xml"
+  ],
+  "action_items": [
+    "Optional: Align at-risk hour threshold between /api/streak (>=14 UTC) and scheduler._check_streak_at_risk (18-22 UTC).",
+    "Optional: Validate /api/streak/celebrate milestone param against MILESTONES list.",
+    "Carryover from iter3: server.py is 762 lines — split into routers/ (auth, photos, messages, settings, streak, memories)."
+  ],
+  "critical_code_review_comments": [
+    "Scheduler is_at_risk window (6pm-10pm UTC) differs from API at-risk window (>=2pm UTC). Pick one source of truth.",
+    "StreakBadge polls /api/streak every 30s — fine, but newMilestone state could re-show modal if user reloads before celebrate POST completes. Mitigated by shownMilestonesLocally Set, but only in-memory.",
+    "celebratedMilestones is stored as an array in couples doc; using $addToSet for idempotency is correct.",
+    "MilestoneCelebration modal renders 30 confetti emoji DOM nodes with framer-motion — minor perf cost, acceptable for one-off celebration.",
+    "/api/streak/celebrate does not require the milestone to actually match the current streak — a user could pre-celebrate milestone=1000 to suppress it forever. Consider only allowing celebration for the current streak value (or a value <= current streak)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration4_streak.py (new)"
+  ],
+  "success_rate": {"backend": "100% (21/21 new + 32/32 regression)", "frontend": "100% (StreakBadge + MilestoneCelebration flow verified end-to-end)"},
+  "test_credentials": "No auth. Seeded users Alice (id=52d6b731-430d-42eb-9da2-f18674f02bdc) and Bob (id=9f07549e-1b24-46f8-ab0f-932ab700bc8a), coupleId=c9f6f897-cf1a-477a-97bd-0d26176a58ca, 3-day streak.",
+  "seed_data_creation": "Tests created TEST_I4_* users (Alice/Bob, lonely, nocouple, streaksolo, S_A, S_B). Reset celebratedMilestones=[] on seeded couple at start of frontend test, then frontend test re-celebrated milestone=3 by closing the modal. Note: celebratedMilestones may need to be reset again for next iteration if testing milestone modal.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: `export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2) && cd /app && pytest backend/tests/ -v`. All 53 tests should pass. For frontend, login as Alice (set localStorage.userId=52d6b731-430d-42eb-9da2-f18674f02bdc). To re-test MilestoneCelebration modal, reset celebratedMilestones in mongo: db.couples.update_one({id: COUPLE_ID}, {$set: {celebratedMilestones: []}}). The at-risk scheduler path (_check_streak_at_risk) is hour-gated 18-22 UTC and could not be exercised live without time mocking — endpoint-level at-risk logic in /api/streak was verified via direct shape checks (atRisk=False when both sent today).",
+  "rca of the issue": "No bugs found in iteration 4 features. The only divergence worth noting: server.py /api/streak uses hour>=14 UTC for atRisk while scheduler.py _check_streak_at_risk gates between 18 and 22 UTC, creating a 4-hour window (14-18 UTC) where UI shows at-risk but no push goes out. Not blocking — UI 'Ping!' button still works because save-streak-button is shown based on atRisk and user-only ping is a synchronous user action, not scheduler-driven."
+}
