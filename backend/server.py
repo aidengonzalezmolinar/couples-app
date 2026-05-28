@@ -28,10 +28,76 @@ from contextlib import asynccontextmanager
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# =========================
+# MEMORY DB (FAKE MONGO)
+# =========================
+
+class MemoryCollection:
+    def __init__(self):
+        self.data = []
+
+    async def insert_one(self, doc):
+        self.data.append(doc)
+
+    async def find_one(self, query):
+        for doc in self.data:
+            if all(doc.get(k) == v for k, v in query.items()):
+                return doc
+        return None
+
+    async def update_one(self, query, update, upsert=False):
+        doc = await self.find_one(query)
+
+        if doc:
+            if "$set" in update:
+                doc.update(update["$set"])
+
+            if "$addToSet" in update:
+                for k, v in update["$addToSet"].items():
+                    doc.setdefault(k, [])
+                    if v not in doc[k]:
+                        doc[k].append(v)
+
+        elif upsert:
+            new_doc = query.copy()
+            if "$set" in update:
+                new_doc.update(update["$set"])
+            self.data.append(new_doc)
+
+    async def find(self, query=None):
+        query = query or {}
+
+        class Cursor:
+            def __init__(self, data):
+                self.data = data
+
+            def sort(self, key, direction):
+                reverse = direction == -1
+                self.data.sort(key=lambda x: x.get(key), reverse=reverse)
+                return self
+
+            async def to_list(self, length=None):
+                return self.data[:length]
+
+        filtered = [
+            doc for doc in self.data
+            if all(doc.get(k) == v for k, v in query.items())
+        ]
+
+        return Cursor(filtered)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
+    # -------------------
+    # STARTUP
+    # -------------------
+
     mongo_url = os.getenv("MONGO_URL")
     db_name = os.getenv("DB_NAME", "couples_app")
+
+    client = None
+    scheduler = None
 
     if mongo_url:
         client = AsyncIOMotorClient(mongo_url)
@@ -39,51 +105,38 @@ async def lifespan(app: FastAPI):
 
         app.state.mongo_client = client
         app.state.db = db
+
         app.state.users = db.get_collection("users")
         app.state.couples = db.get_collection("couples")
         app.state.photos = db.get_collection("photos")
         app.state.notifications = db.get_collection("notifications")
         app.state.subscriptions = db.get_collection("push_subscriptions")
         app.state.reminders = db.get_collection("reminders")
-        app.state.notification_state = db.get_collection("userNotificationState")
-        app.state.messages = db.get_collection("messages")
         app.state.settings = db.get_collection("user_settings")
 
         print("✅ MongoDB connected")
 
     else:
-        print("⚠️ MongoDB NOT found — running in MEMORY MODE")
+        print("⚠️ MongoDB NOT found — memory mode")
 
-        class MemoryDB:
-            pass
-
-        db = MemoryDB()
-
-        # fake collections (so code doesn't crash)
-        app.state.db = db
-        app.state.users = {}
-        app.state.couples = {}
+app.state.users = MemoryCollection()
+app.state.couples = MemoryCollection()
+app.state.photos = MemoryCollection()
+app.state.notifications = MemoryCollection()
+app.state.subscriptions = MemoryCollection()
+app.state.reminders = MemoryCollection()
+app.state.settings = MemoryCollection()
+app.state.messages = MemoryCollection()
         app.state.photos = {}
         app.state.notifications = {}
         app.state.subscriptions = {}
         app.state.reminders = {}
-        app.state.notification_state = {}
-        app.state.messages = {}
         app.state.settings = {}
 
-    yield
-
-    # shutdown cleanup
-    if hasattr(app.state, "mongo_client"):
-        app.state.mongo_client.close()
-    
-    # Storage will be initialized on first use
-    logger.info("Storage ready (will initialize on first use)")
-    
-    # Start reminder scheduler
+    # OPTIONAL: start scheduler ONLY ONCE here
     def push_service_factory():
         return PushService(app.state.subscriptions)
-    
+
     scheduler = ReminderScheduler(
         app.state.reminders,
         app.state.subscriptions,
@@ -94,14 +147,24 @@ async def lifespan(app: FastAPI):
         photos_collection=app.state.photos,
         settings_collection=app.state.settings,
     )
+
     scheduler.start()
     app.state.scheduler = scheduler
-    
+
+    # IMPORTANT: ONLY ONE YIELD
     yield
-    
-    # Shutdown
-    scheduler.shutdown()
-    client.close()
+
+    # -------------------
+    # SHUTDOWN
+    # -------------------
+
+    if scheduler:
+        scheduler.shutdown()
+
+    if client:
+        client.close()
+
+    logger.info("App shutdown complete")
 
 app = FastAPI(lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
