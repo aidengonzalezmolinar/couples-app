@@ -24,24 +24,58 @@ from services.scheduler import ReminderScheduler
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+from contextlib import asynccontextmanager
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    mongo_url = os.environ['MONGO_URL']
-    client = AsyncIOMotorClient(mongo_url)
-    db = client[os.environ['DB_NAME']]
-    
-    app.state.mongo_client = client
-    app.state.db = db
-    app.state.users = db.get_collection("users")
-    app.state.couples = db.get_collection("couples")
-    app.state.photos = db.get_collection("photos")
-    app.state.notifications = db.get_collection("notifications")
-    app.state.subscriptions = db.get_collection("push_subscriptions")
-    app.state.reminders = db.get_collection("reminders")
-    app.state.notification_state = db.get_collection("userNotificationState")
-    app.state.messages = db.get_collection("messages")
-    app.state.settings = db.get_collection("user_settings")
+    mongo_url = os.getenv("MONGO_URL")
+    db_name = os.getenv("DB_NAME", "couples_app")
+
+    if mongo_url:
+        client = AsyncIOMotorClient(mongo_url)
+        db = client[db_name]
+
+        app.state.mongo_client = client
+        app.state.db = db
+        app.state.users = db.get_collection("users")
+        app.state.couples = db.get_collection("couples")
+        app.state.photos = db.get_collection("photos")
+        app.state.notifications = db.get_collection("notifications")
+        app.state.subscriptions = db.get_collection("push_subscriptions")
+        app.state.reminders = db.get_collection("reminders")
+        app.state.notification_state = db.get_collection("userNotificationState")
+        app.state.messages = db.get_collection("messages")
+        app.state.settings = db.get_collection("user_settings")
+
+        print("✅ MongoDB connected")
+
+    else:
+        print("⚠️ MongoDB NOT found — running in MEMORY MODE")
+
+        class MemoryDB:
+            pass
+
+        db = MemoryDB()
+
+        # fake collections (so code doesn't crash)
+        app.state.db = db
+        app.state.users = {}
+        app.state.couples = {}
+        app.state.photos = {}
+        app.state.notifications = {}
+        app.state.subscriptions = {}
+        app.state.reminders = {}
+        app.state.notification_state = {}
+        app.state.messages = {}
+        app.state.settings = {}
+
+    yield
+
+    # shutdown cleanup
+    if hasattr(app.state, "mongo_client"):
+        app.state.mongo_client.close()
     
     # Storage will be initialized on first use
     logger.info("Storage ready (will initialize on first use)")
